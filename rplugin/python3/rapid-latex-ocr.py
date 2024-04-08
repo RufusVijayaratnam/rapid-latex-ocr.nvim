@@ -42,7 +42,7 @@ class OCRPlugin(object):
         if os_name == "Darwin":  # macOS
             command = macos_cmd
         elif os_name == "Linux":  # Linux
-            if is_wsl():
+            if self.is_wsl():
                 command = win_cmd  
             else:
                 command = linux_cmd
