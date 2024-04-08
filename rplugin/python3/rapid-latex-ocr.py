@@ -46,7 +46,7 @@ class OCRPlugin(object):
         if wsl:              # Convert the Linux file path to a Windows-compatible path for PowerShell
             try:
                 windows_file_path = subprocess.check_output(["wslpath", "-w", file_path]).decode().strip()
-                command = ["powershell.exe", "-command", f"[System.Windows.Forms.Clipboard]::GetImage().Save('{windows_file_path}')"]
+                command = ["powershell.exe", "-command", f"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Clipboard]::GetImage().Save('{windows_file_path}')"]
                 subprocess.run(command, check=True, capture_output=True)
                 self.nvim.out_write(f"Image saved to {file_path}\n")
                 return True
