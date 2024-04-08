@@ -2,13 +2,14 @@ import pynvim
 from rapid_latex_ocr import LatexOCR
 from datetime import datetime
 import subprocess
+import os
 @pynvim.plugin
 class OCRPlugin(object):
     def __init__(self, nvim):
         self.nvim = nvim
         self.model = None
     @pynvim.function('LoadOCRModel', sync=True)
-    def load_model(self, args):
+    def load_model(self):
         """Load the OCR model."""
         self.nvim.out_write("Loading OCR model...\n")
         self.model = LatexOCR()
@@ -17,7 +18,7 @@ class OCRPlugin(object):
         """Process an image with the given OCR model."""
         if not self.model:
             self.nvim.err_write("OCR model is not loaded.\n")
-            return
+            return None, None
         try:
             with open(img_path, "rb") as f:
                 data = f.read()
