@@ -42,9 +42,8 @@ class OCRPlugin(object):
     def save_clipboard_image_to_file(self, file_path):
             # Determine the operating system
             os_name = platform.system()
-            wsl = self.is_wsl()
             
-            if os_name == 'Windows' or wsl:
+            if os_name == 'Windows':
                 # Windows-specific code
                 img = ImageGrab.grabclipboard()
                 if img is None:
