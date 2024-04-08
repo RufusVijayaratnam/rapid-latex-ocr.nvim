@@ -3,6 +3,9 @@ from rapid_latex_ocr import LatexOCR
 from datetime import datetime
 import subprocess
 import os
+import platform
+from PIL import ImageGrab
+import sys
 @pynvim.plugin
 class OCRPlugin(object):
     def __init__(self, nvim):
@@ -35,24 +38,44 @@ class OCRPlugin(object):
         except FileNotFoundError:
             # If the file doesn't exist, we're likely not on Linux or WSL at all
             return False
-    def save_clipboard_image_to_file(self, file_path):
-        os_name = subprocess.getoutput("uname") or "Windows"
-        win_cmd = f"powershell.exe -command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Clipboard]::GetImage().Save('{file_path}', [System.Drawing.Imaging.ImageFormat]::Png)\""
-        macos_cmd = f"osascript -e 'tell application \"System Events\" to write (the clipboard as JPEG picture) to (POSIX file \"{file_path}\")'"
-        linux_cmd = f"xclip -selection clipboard -t image/png -o > \"{file_path}\""
-        if os_name == "Darwin":  # macOS
-            command = macos_cmd
-        elif os_name == "Linux":  # Linux
-            if self.is_wsl():
-                command = win_cmd  
-            else:
-                command = linux_cmd
-        else:  # Assuming Windows if not macOS or Linux
-            command = win_cmd
-        os.system(command)
+    def save_clipboard_image_to_file(self):
+        # Determine the operating system
+        os_name = platform.system()
+        wsl = self.is_wsl()
+        
+        if os_name == 'Windows' or wsl:
+            # Windows-specific code
+            img = ImageGrab.grabclipboard()
+            if img is None:
+                print("No image in clipboard!")
+                sys.exit(1)
+        elif os_name == 'Darwin':
+            # macOS-specific code
+            # Use macOS's 'pngpaste' command, must be installed first
+            try:
+                subprocess.check_call(['pngpaste', '/tmp/clipboard.png'])
+                img = Image.open('/tmp/clipboard.png')
+            except subprocess.CalledProcessError:
+                print("No image in clipboard or pngpaste not installed.")
+                sys.exit(1)
+        elif os_name == 'Linux':
+            # Linux-specific code, using xclip
+            try:
+                subprocess.check_call(['xclip', '-selection', 'clipboard', '-t', 'image/png', '-o', '> /tmp/clipboard.png'])
+                img = Image.open('/tmp/clipboard.png')
+            except subprocess.CalledProcessError:
+                print("No image in clipboard or xclip not installed.")
+                sys.exit(1)
+        else:
+            print(f"Unsupported OS: {os_name}")
+            sys.exit(1)
+
+    # Save the image from the clipboard
+    img.save("clipboard_image.png")
+    print("Image saved as clipboard_image.png")
 
     @pynvim.function('ImageToLatex', sync=True)
-    def run_rapid_latex_ocr(self, args):
+    def run_rapid_latex_ocr(self):
         file_path = datetime.now().strftime("%Y-%m-%d_%H_%M_%S") + ".png"
         self.save_clipboard_image_to_file(file_path)
         
