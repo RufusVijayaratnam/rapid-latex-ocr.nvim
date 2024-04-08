@@ -40,43 +40,54 @@ class OCRPlugin(object):
             # If the file doesn't exist, we're likely not on Linux or WSL at all
             return False
     def save_clipboard_image_to_file(self, file_path):
-            # Determine the operating system
-            os_name = platform.system()
-            
-            if os_name == 'Windows':
-                # Windows-specific code
+        # Determine the operating system
+        os_name = platform.system()
+        wsl = self.is_wsl()
+        if wsl:              # Convert the Linux file path to a Windows-compatible path for PowerShell
+            try:
+                windows_file_path = subprocess.check_output(["wslpath", "-w", file_path]).decode().strip()
+                command = ["powershell.exe", "-command", f"[System.Windows.Forms.Clipboard]::GetImage().Save('{windows_file_path}')"]
+                subprocess.run(command, check=True, capture_output=True)
+                self.nvim.out_write(f"Image saved to {file_path}\n")
+                return True
+            except subprocess.CalledProcessError as e:
+                self.nvim.err_write(f"Failed to save image from clipboard: {e}\n")
+                return False
+        elif os_name == 'Windows':
+            # Windows-specific code
+            try:
                 img = ImageGrab.grabclipboard()
                 if img is None:
-                    self.nvim.out_write("No image in clipboard!")
+                    self.nvim.err_write("No image in clipboard!\n")
                     return False
-
                 img.save(file_path)
-                self.nvim.out_write(f"Image saved to {file_path}")
+                self.nvim.out_write(f"Image saved to {file_path}\n")
                 return True
-            elif os_name == 'Darwin':
-                # macOS-specific code
-                # Use macOS's 'pngpaste' command, must be installed first
-                try:
-                    subprocess.check_call(['pngpaste', file_path])
-                    self.nvim.out_write(f"Image saved to {file_path}")
-                    return True
-                except subprocess.CalledProcessError:
-                    self.nvim.out_write("No image in clipboard or pngpaste not installed.")
-                    return False
-            elif os_name == 'Linux':
-                # Linux-specific code, using xclip
-                try:
-                    # Using xclip to save the clipboard image directly to a file
-                    with open(file_path, 'wb') as f:
-                        subprocess.check_call(['xclip', '-selection', 'clipboard', '-t', 'image/png', '-o'], stdout=f)
-                    self.nvim.out_write(f"Image saved to {file_path}")
-                    return True
-                except subprocess.CalledProcessError:
-                    self.nvim.out_write("No image in clipboard or xclip not installed.")
-                    return False
-            else:
-                self.nvim.out_write(f"Unsupported OS: {os_name}")
-                return False        
+            except Exception as e:
+                self.nvim.err_write(f"Error saving image: {e}\n")
+                return False
+        elif os_name == 'Darwin':
+            # macOS-specific code
+            try:
+                subprocess.run(['pngpaste', file_path], check=True)
+                self.nvim.out_write(f"Image saved to {file_path}\n")
+                return True
+            except subprocess.CalledProcessError:
+                self.nvim.err_write("No image in clipboard or pngpaste not installed.\n")
+                return False
+        elif os_name == 'Linux':
+            # Linux-specific code, using xclip
+            try:
+                with open(file_path, 'wb') as f:
+                    subprocess.run(['xclip', '-selection', 'clipboard', '-t', 'image/png', '-o'], stdout=f, check=True)
+                self.nvim.out_write(f"Image saved to {file_path}\n")
+                return True
+            except subprocess.CalledProcessError:
+                self.nvim.err_write("No image in clipboard or xclip not installed.\n")
+                return False
+        else:
+            self.nvim.err_write(f"Unsupported OS: {os_name}\n")
+            return False
 
 
     @pynvim.function('ImageToLatex', sync=False)
