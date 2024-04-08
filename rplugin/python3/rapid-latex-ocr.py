@@ -97,7 +97,6 @@ class OCRPlugin(object):
         placeholder = "LaTeX code being generated..."
         new_line = current_line[:col] + placeholder + current_line[col:]
         self.nvim.current.buffer[row-1] = new_line    
-        output, elapse = self.process_image(file_path)
         file_path = datetime.now().strftime("%Y-%m-%d_%H_%M_%S") + ".png"
         if not self.save_clipboard_image_to_file(file_path):
             self.nvim.out_write("Could not save clipboard image, aborted operation")
@@ -108,6 +107,7 @@ class OCRPlugin(object):
             self.load_model()
             self.nvim.out_write("Model Loaded")
         
+        output, elapse = self.process_image(file_path)
         if not os.path.exists(file_path):
             self.nvim.err_write("Failed to save clipboard image to file\n")
             return    
