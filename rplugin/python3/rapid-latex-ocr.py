@@ -1,6 +1,7 @@
 import pynvim
 from rapid_latex_ocr import LatexOCR
 from datetime import datetime
+import subprocess
 @pynvim.plugin
 class OCRPlugin(object):
     def __init__(self, nvim):
