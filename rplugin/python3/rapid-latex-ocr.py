@@ -81,7 +81,7 @@ class OCRPlugin(object):
 
 
     @pynvim.function('ImageToLatex', sync=False)
-    def run_rapid_latex_ocr(self):
+    def run_rapid_latex_ocr(self, args):
         file_path = datetime.now().strftime("%Y-%m-%d_%H_%M_%S") + ".png"
         if not self.save_clipboard_image_to_file(file_path):
             self.nvim.out_write("Could not save clipboard image, aborted operation")
