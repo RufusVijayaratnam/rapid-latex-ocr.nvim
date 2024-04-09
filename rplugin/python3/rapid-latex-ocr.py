@@ -10,6 +10,7 @@ class OCRPlugin(object):
     def __init__(self, nvim):
         self.nvim = nvim
         self.model = None
+        self.delimiters = {}
 
     def load_model(self):
         """Load the OCR model."""
@@ -39,6 +40,10 @@ class OCRPlugin(object):
         except FileNotFoundError:
             # If the file doesn't exist, we're likely not on Linux or WSL at all
             return False
+    @pynvim.function('SetupDelimiters', sync=False)
+    def SetupDelimiters(self, args):
+        self.delimiters = args[0]
+
     def save_clipboard_image_to_file(self, file_path):
         # Determine the operating system
         os_name = platform.system()
@@ -92,33 +97,51 @@ class OCRPlugin(object):
 
     @pynvim.function('ImageToLatex', sync=False)
     def run_rapid_latex_ocr(self, args):
+        if args[0] in self.delimiters:
+            delim_left = self.delimiters[args[0]]['left']
+            delim_right = self.delimiters[args[0]]['right']
+        else:
+            self.nvim.err_write(f"Error: No such delimiter '{args[0]}' registered. Available delimiters: {self.delimiters}\n")
+            return
         row, col = self.nvim.current.window.cursor
         current_line = self.nvim.current.buffer[row-1]
-        placeholder = "LaTeX code being generated..."
+        placeholder = delim_left + "LaTeX code being generated..." + delim_right
         new_line = current_line[:col] + placeholder + current_line[col:]
-        self.nvim.current.buffer[row-1] = new_line    
+        self.nvim.current.buffer[row-1] = new_line
+        # Move cursor to end of placeholder
+        new_col = col + len(placeholder)
+        self.nvim.current.window.cursor = (row, new_col)
         file_path = datetime.now().strftime("%Y-%m-%d_%H_%M_%S") + ".png"
         if not self.save_clipboard_image_to_file(file_path):
             self.nvim.out_write("Could not save clipboard image, aborted operation")
+            self.nvim.current.buffer[row-1] = current_line
             return
-
         if not self.model:
             self.nvim.out_write("Loading Model")
             self.load_model()
             self.nvim.out_write("Model Loaded")
-        
+            if not self.model:
+                self.nvim.current.buffer[row-1] = current_line
+                return
         output, elapse = self.process_image(file_path)
-        if not os.path.exists(file_path):
-            self.nvim.err_write("Failed to save clipboard image to file\n")
-            return    
-        if output is None:
-            self.nvim.err_write("Failed to process image\n")
-            return    
-        current_line = self.nvim.current.buffer[row-1]
+        output = delim_left + output + delim_right
+        if not os.path.exists(file_path) or output is None:
+            self.nvim.err_write("Failed to save clipboard image to file or process image\n")
+            self.nvim.current.buffer[row-1] = current_line
+            return
+        current_line = self.nvim.current.buffer[row - 1]
         start = current_line.find(placeholder)
         if start != -1:
+            crow, ccol = self.nvim.current.window.cursor
             end = start + len(placeholder)
+            diff = ccol - end
             new_line = current_line[:start] + output + current_line[end:]
-            self.nvim.current.buffer[row-1] = new_line    
+            self.nvim.current.buffer[row-1] = new_line
+            # Move cursor to end of generated output
+            if crow == row:
+                new_col = ccol + len(output) - len(placeholder) + diff
+            else:
+                new_col = ccol
+            self.nvim.current.window.cursor = (crow, new_col)
         os.remove(file_path)
         self.nvim.out_write("LaTeX code successfully generated and inserted.\n")
