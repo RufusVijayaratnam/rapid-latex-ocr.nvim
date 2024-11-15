@@ -1,5 +1,5 @@
 import pynvim
-from rapid_latex_ocr import LatexOCR
+from rapid_latex_ocr import LaTeXOCR
 from datetime import datetime
 import subprocess
 import os
