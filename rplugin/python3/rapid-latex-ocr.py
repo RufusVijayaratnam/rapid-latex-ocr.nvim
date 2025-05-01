@@ -15,7 +15,7 @@ class OCRPlugin(object):
     def load_model(self):
         """Load the OCR model."""
         self.nvim.out_write("Loading OCR model...\n")
-        self.model = LatexOCR()
+        self.model = LaTeXOCR()
         self.nvim.out_write("Model loaded.\n")
 
     def process_image(self, img_path):
